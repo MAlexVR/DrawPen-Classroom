@@ -1,0 +1,134 @@
+name: Build Installers
+
+# on: push
+on: pull_request
+
+jobs:
+  macos:
+    name: Build for macOS
+
+    strategy:
+      matrix:
+        os: [macos-15-intel, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: 3.12
+
+      # https://github.com/electron/forge/issues/2807
+      # - run: python3 -m pip install setuptools --break-system-packages
+      - name: Set up Python for appdmg to be installed
+        run: python3 -m pip install setuptools
+
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - run: |
+          npm install
+          npm install -g appdmg@0.6.6
+
+      - name: macOS certificate
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_APPLICATION_PASSWORD }}
+        run: |
+          KEY_CHAIN=build.keychain
+          CERTIFICATE_P12=certificate.p12
+          echo $APPLE_CERTIFICATE | base64 --decode > $CERTIFICATE_P12
+          security create-keychain -p actions $KEY_CHAIN
+          security default-keychain -s $KEY_CHAIN
+          security unlock-keychain -p actions $KEY_CHAIN
+          security import $CERTIFICATE_P12 -k $KEY_CHAIN -P $APPLE_CERTIFICATE_PASSWORD -T /usr/bin/codesign;
+          security set-key-partition-list -S apple-tool:,apple: -s -k actions $KEY_CHAIN
+          rm -fr *.p12
+
+      - name: Run Make
+        env:
+          PUBLIC_POSTHOG_KEY: ${{ secrets.PUBLIC_POSTHOG_KEY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          npm run make
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build_${{ matrix.os }}
+          path: out/make
+          if-no-files-found: error
+
+  linux:
+    name: Build for Linux (Fedora COSMIC compatibility)
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install X11 and RPM build dependencies
+        run: sudo apt-get update && sudo apt-get install --yes libx11-dev libxext-dev rpm
+
+      - name: Build X11 input-shape helper
+        run: ./tools/linux/build-input-shape.sh
+
+      - run: npm install
+
+      - name: Run Make
+        env:
+          PUBLIC_POSTHOG_KEY: ${{ secrets.PUBLIC_POSTHOG_KEY }}
+        run: npm run make
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build_${{ matrix.os }}
+          path: out/make
+          if-no-files-found: error
+
+  windows:
+    name: Build for Windows
+
+    strategy:
+      matrix:
+        os: [windows-2022]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+
+      # - name: Install Dependencies
+      #   # For some reason cmake.js sometimes skips the build step in CI on Windows in this
+      #   # case. So we install and execute cmake.js manually.
+      #   run: |
+      #     npm install cmake-js -g
+      #     npx cmake-js install
+      #     npm install
+
+      - run: npm install
+
+      - name: Run Make
+        env:
+          PUBLIC_POSTHOG_KEY: ${{ secrets.PUBLIC_POSTHOG_KEY }}
+        run: npm run make
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: build_${{ matrix.os }}
+          path: out/make
+          if-no-files-found: error

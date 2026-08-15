@@ -1,0 +1,26 @@
+#cute_cursor {
+  will-change: transform;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+
+  svg {
+    display: block;
+  }
+
+  .cute_cursor__brush-preview {
+    min-width: 2px;
+    min-height: 2px;
+    border: 1px solid rgba(0, 0, 0, 0.55);
+    border-radius: 50%;
+    box-sizing: border-box;
+    transform: translate(-50%, -50%);
+
+    &.color-rainbow {
+      background-image: conic-gradient(red, yellow, lime, aqua, blue, magenta, red);
+    }
+  }
+}

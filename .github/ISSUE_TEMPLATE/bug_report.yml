@@ -1,0 +1,54 @@
+name: Fedora 44 COSMIC bug report
+description: Report a reproducible problem in the community build
+title: "[Fedora 44 COSMIC] "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for helping improve the Fedora 44 COSMIC build. Remove private screen content from logs and screenshots.
+  - type: input
+    id: version
+    attributes:
+      label: DrawPen release
+      placeholder: v0.0.56-fedora44-cosmic.1
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Fedora and COSMIC versions
+      placeholder: Fedora 44, COSMIC ...
+    validations:
+      required: true
+  - type: textarea
+    id: displays
+    attributes:
+      label: Display configuration
+      description: Include monitor count, resolution, arrangement, and scaling.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. Launch DrawPen\n2. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug output
+      description: Optional output from `DRAWPEN_DEBUG=1 drawpen --ozone-platform=x11`.
+      render: shell

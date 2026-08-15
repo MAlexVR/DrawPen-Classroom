@@ -1,0 +1,49 @@
+#contentEditable {
+  position: fixed;
+  // top: 0;
+  // left: 0;
+  line-height: 1.25; // lineHeightMultiplier
+  font-family: 'Excalifont';
+  min-width: 1px;
+  display: inline-block;
+  white-space: pre;
+  outline: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  overflow: hidden; // Select Text issue
+  transform-origin: top left; // For Scale
+
+  // FOR DEV: Обведення прямокутника
+  // border: 1px solid green;
+}
+
+.text-editor__format-controls {
+  position: fixed;
+  z-index: 4;
+  display: flex;
+  padding: 3px;
+  border: 1px solid #222;
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
+
+  button {
+    width: 25px;
+    height: 25px;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: #111;
+    background: transparent;
+    font-family: Arial, sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+
+    &.active {
+      border-color: #111;
+      background: #dbeafe;
+    }
+  }
+}
