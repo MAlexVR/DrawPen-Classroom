@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.0.59] - 2026-08-16
+
+### Platform compatibility
+
+- Fix full-screen capture hanging forever with no feedback under native Wayland/GNOME: `desktopCapturer.getSources()` was blocking on a stuck xdg-desktop-portal-gnome consent dialog that never resolves in this environment. Screenshots now talk directly to `org.gnome.Mutter.ScreenCast` over D-Bus and grab a frame from the resulting PipeWire stream, bypassing the broken portal; `desktopCapturer` remains a fallback for non-GNOME desktops and mac/Windows.
+- Save screenshots to a `DrawPen` subfolder of the system Pictures directory (was `Screenshots`), named `DRAW-<timestamp>.png`.
+
 ## [0.0.58] - 2026-08-16
 
 ### Platform compatibility
