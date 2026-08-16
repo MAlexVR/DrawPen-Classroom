@@ -1,5 +1,12 @@
 # Change Log
 
+## [0.0.57] - 2026-08-15
+
+### Platform compatibility
+
+- Fix the toolbar being unmovable under GNOME: the X11 input-shape/window workarounds were gated on detecting COSMIC specifically (`XDG_CURRENT_DESKTOP` containing "cosmic"), so they silently stayed off on any other desktop launched with the same forced-X11 flag. Detection now checks whether Ozone is actually running the X11 backend (`app.commandLine.getSwitchValue('ozone-platform') === 'x11'`), so the workarounds apply on GNOME too.
+- Renamed the internal `isCosmic` flag to `isX11` to match what it actually gates.
+
 ## [0.0.56-windows-classroom.1] - 2026-08-15
 
 ### Windows distribution
