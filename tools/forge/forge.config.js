@@ -12,9 +12,15 @@ module.exports = {
     extraResource: process.platform === 'linux'
       ? [path.join(rootDir, 'assets/build/drawpen-x11-input-shape')]
       : [],
-    executableName: process.platform === 'linux' ? packageJson.name : packageJson.productName,
+    executableName: process.platform === 'linux'
+      ? packageJson.name
+      : process.platform === 'win32'
+        ? 'DrawPen Classroom'
+        : packageJson.productName,
     icon: path.join(rootDir, 'assets/build/icon'),
-    appBundleId: packageJson.appId,
+    appBundleId: process.platform === 'win32'
+      ? 'io.github.malexvr.drawpenclassroom'
+      : packageJson.appId,
     ...(process.argv.includes('--no-sign')
       ? {}
       : {
@@ -41,13 +47,16 @@ module.exports = {
     },
     {
       name: "@electron-forge/maker-squirrel",
+      platforms: ['win32'],
       config: {
         setupIcon: path.join(rootDir, 'assets/build/icon.ico'),
-        iconUrl: 'https://raw.githubusercontent.com/DmytroVasin/DrawPen/main/assets/build/icon.ico',
+        iconUrl: 'https://raw.githubusercontent.com/MAlexVR/DrawPen-Fedora-COSMIC/main/assets/build/icon.ico',
         loadingGif: path.join(rootDir, 'assets/build/loading.gif'),
-        name: 'DrawPen',
-        shortcutName: 'DrawPen',
-        setupExe: 'DrawPen.Setup.exe',
+        name: 'DrawPenClassroom',
+        authors: 'Dmytro Vasin and DrawPen Classroom contributors',
+        description: 'Unofficial DrawPen classroom edition with additional teaching tools',
+        shortcutName: 'DrawPen Classroom',
+        setupExe: 'DrawPen-Classroom-Windows-x64.Setup.exe',
         noMsi: true
       }
     },

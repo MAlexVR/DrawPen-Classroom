@@ -1,5 +1,16 @@
 # Change Log
 
+## [0.0.56-windows-classroom.1] - 2026-08-15
+
+### Windows distribution
+
+- Add a dedicated Windows x64 Squirrel installer and portable ZIP build.
+- Give the community package a distinct installer, shortcut, executable, taskbar identity, and user-data directory under the name `DrawPen Classroom`.
+- Keep the X11 input-shape helper and COSMIC window behavior disabled on Windows.
+- Add a Windows-hosted packaging and startup smoke-test workflow.
+- Generate SHA-256 checksums for all published Windows artifacts.
+- Document that the community installer is unsigned and may trigger a Windows SmartScreen warning.
+
 ## [0.0.56-fedora44-cosmic.1] - 2026-08-15
 
 ### Platform compatibility

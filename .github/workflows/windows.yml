@@ -1,0 +1,80 @@
+name: Build Windows x64
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-x64:
+    name: Package and smoke-test Windows x64
+    runs-on: windows-2022
+    timeout-minutes: 35
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build Squirrel installer and portable ZIP
+        shell: pwsh
+        run: .\node_modules\.bin\electron-forge.cmd make --platform=win32 --arch=x64
+
+      - name: Smoke-test packaged application startup
+        shell: pwsh
+        run: |
+          $application = Get-ChildItem -Path out -Recurse -File -Filter 'DrawPen Classroom.exe' |
+            Where-Object { $_.FullName -match 'win32-x64' } |
+            Select-Object -First 1
+
+          if (-not $application) {
+            throw 'Packaged DrawPen Classroom executable was not found.'
+          }
+
+          $process = Start-Process -FilePath $application.FullName -PassThru
+          Start-Sleep -Seconds 8
+
+          if ($process.HasExited) {
+            throw "DrawPen Classroom exited during startup smoke test with code $($process.ExitCode)."
+          }
+
+          Get-Process -Name 'DrawPen Classroom' -ErrorAction SilentlyContinue |
+            Stop-Process -Force
+
+      - name: Generate SHA-256 checksums
+        shell: pwsh
+        run: |
+          $artifacts = Get-ChildItem -Path out\make -Recurse -File |
+            Where-Object { $_.Extension -in '.exe', '.nupkg', '.zip' -or $_.Name -eq 'RELEASES' } |
+            Sort-Object Name
+
+          if (-not $artifacts) {
+            throw 'No Windows release artifacts were generated.'
+          }
+
+          $checksums = foreach ($artifact in $artifacts) {
+            $hash = (Get-FileHash -Path $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($artifact.Name)"
+          }
+
+          $checksums | Set-Content -Path out\make\SHA256SUMS-windows-x64.txt -Encoding ascii
+          Get-Content out\make\SHA256SUMS-windows-x64.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: drawpen-classroom-windows-x64
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            out/make/squirrel.windows/x64/DrawPen-Classroom-Windows-x64.Setup.exe
+            out/make/squirrel.windows/x64/DrawPenClassroom-0.0.56-full.nupkg
+            out/make/squirrel.windows/x64/RELEASES
+            out/make/zip/win32/x64/DrawPen-win32-x64-0.0.56.zip
+            out/make/SHA256SUMS-windows-x64.txt

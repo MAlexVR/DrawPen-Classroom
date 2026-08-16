@@ -21,6 +21,14 @@ const isMac = process.platform === 'darwin'
 const isLinux = process.platform === 'linux'
 const isWin = process.platform === 'win32'
 const isCosmic = isLinux && (process.env.XDG_CURRENT_DESKTOP || '').toLowerCase().includes('cosmic')
+
+if (isWin) {
+  // Keep this community build separate from the official DrawPen shortcut,
+  // taskbar identity, and per-user settings directory.
+  app.setName('DrawPen Classroom')
+  app.setAppUserModelId('io.github.malexvr.drawpenclassroom')
+}
+
 // The renderer handshake now measures the mapped draw window before applying
 // the toolbar position. The old COSMIC-specific correction would therefore be
 // applied twice and move Draw Mode 16 px above Pointer Mode.
