@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   linux:
-    name: Build for Linux (Fedora COSMIC compatibility)
+    name: Build for Linux (X11 compatibility)
 
     strategy:
       matrix:
