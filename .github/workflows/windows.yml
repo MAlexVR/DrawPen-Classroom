@@ -67,7 +67,7 @@ jobs:
           $checksums | Set-Content -Path out\make\SHA256SUMS-windows-x64.txt -Encoding ascii
           Get-Content out\make\SHA256SUMS-windows-x64.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: drawpen-classroom-windows-x64
           if-no-files-found: error
