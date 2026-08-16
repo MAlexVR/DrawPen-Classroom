@@ -1,13 +1,13 @@
 <p align="center">
   <img src="assets/static/icon.png" height="180" alt="DrawPen icon">
   <h1 align="center">DrawPen Classroom Edition</h1>
-  <p align="center">A community-maintained DrawPen build for teaching on Fedora 44 COSMIC and Windows x64</p>
+  <p align="center">A community-maintained DrawPen build for teaching on Fedora 44 and Windows x64</p>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-blue.svg"></a>
   <img alt="Tested on Fedora 44" src="https://img.shields.io/badge/Fedora-44-51A2DA?logo=fedora&logoColor=white">
-  <img alt="Desktop: COSMIC" src="https://img.shields.io/badge/Desktop-COSMIC-6B5DD3">
+  <img alt="Display: native Wayland" src="https://img.shields.io/badge/Display-Wayland_native-6B5DD3">
   <img alt="Windows x64 build" src="https://img.shields.io/badge/Windows-x64-0078D4?logo=windows11&logoColor=white">
   <img alt="Status: community build" src="https://img.shields.io/badge/Status-Community_build-orange">
 </p>
@@ -19,44 +19,38 @@
 
 ## Why this edition exists
 
-This edition keeps the upstream DrawPen structure and adds classroom-oriented drawing tools. It also contains fixes for the X11 compatibility path used by Electron on **Fedora 44 with the COSMIC desktop**. A separately identified Windows x64 package carries the classroom tools while leaving the COSMIC-only code inactive.
+This edition keeps the upstream DrawPen structure and adds classroom-oriented drawing tools. It runs natively on **Fedora 44's Wayland session**, on any desktop environment, instead of forcing the X11 compatibility path. A separate `drawpen-x11` package remains available for cases that still need X11 (for example, desktops without a working `GlobalShortcuts` portal). A separately identified Windows x64 package carries the classroom tools while leaving the Linux-only code inactive.
 
 ## Highlights
 
-- Stable toolbar placement while switching between Pointer Mode and Draw Mode, including restoration after restart.
-- X11 input-region shaping so Pointer Mode allows clicks to pass through to applications underneath the canvas.
-- Reduced black overlay and trailing artifacts while dragging the toolbar on COSMIC.
+- Runs natively on Wayland, with an X11-forced `drawpen-x11` build for desktops that still need it.
+- Stable toolbar placement while switching between Pointer Mode and Draw Mode, including restoration after restart, on both Wayland and X11.
+- X11 input-region shaping so Pointer Mode allows clicks to pass through to applications underneath the canvas (`drawpen-x11` build).
 - White, cream, blue, slate, and black boards with configurable size, opacity, spacing, dots, lines, grid, or polka patterns.
 - Full-screen capture saved to the user's `Pictures/Screenshots` directory.
 - Pen width slider from 2 to 32 px with live cursor preview.
 - Preset and custom drawing colors shared by drawing tools.
-- Straight lines, arrows, squares, rectangles, circles, ovals, triangles, and configurable tables/matrices.
+- Straight and dashed lines (adjustable dash size and spacing), arrows, squares, rectangles, circles, ovals, triangles, and configurable tables/matrices.
 - Numbered horizontal or vertical lines for axes, with configurable bounds and classroom-friendly label spacing.
 - Bold text support.
 
 See [CHANGELOG.md](CHANGELOG.md) for the complete change summary, [FEDORA_44_COSMIC.md](FEDORA_44_COSMIC.md) for Fedora notes, and [WINDOWS.md](WINDOWS.md) for Windows installation and trust information.
 
-## Installation on Fedora 44 COSMIC
+## Installation on Fedora 44
 
-Download the RPM from the [Fedora 44 COSMIC release](https://github.com/MAlexVR/DrawPen-Classroom/releases/tag/v0.0.56-fedora44-cosmic.1), then install it with:
-
-```bash
-sudo dnf install ./drawpen-0.0.56-1.x86_64.rpm
-```
-
-The included desktop launcher starts DrawPen through the X11 compatibility backend required by this build. After installation, launch **DrawPen** from the COSMIC application launcher.
-
-The release notes include the SHA-256 checksum. You can verify the downloaded package with:
+Download the RPM from the [latest release](https://github.com/MAlexVR/DrawPen-Classroom/releases/latest), then install it with:
 
 ```bash
-sha256sum drawpen-0.0.56-1.x86_64.rpm
+sudo dnf install ./drawpen-<version>-1.x86_64.rpm
 ```
 
-Expected checksum:
+This runs DrawPen natively on Wayland. If you need the X11 compatibility backend instead (for example, on a desktop where the global show/hide shortcut doesn't register under Wayland), install the `drawpen-x11` package from the same release:
 
-```text
-247f1cd8d570938851090a0f1de263b5249e924e2c4ec1cd5b366507f2410821
+```bash
+sudo dnf install ./drawpen-x11-<version>-1.x86_64.rpm
 ```
+
+After installation, launch **DrawPen** (or **DrawPen (X11)**) from your application launcher. The release notes include the SHA-256 checksum for each package — verify the downloaded file with `sha256sum` before installing.
 
 ## Installation on Windows x64
 
@@ -101,7 +95,7 @@ For the complete development and packaging instructions, see [CONTRIBUTING.md](C
 
 ## Upstream relationship
 
-This repository is based on upstream DrawPen 0.0.56. General-purpose fixes and features should be proposed to the [upstream project](https://github.com/DmytroVasin/DrawPen) whenever they can be separated cleanly from the Fedora/COSMIC compatibility layer. Include the operating system and display configuration in platform-specific reports.
+This repository is based on upstream DrawPen 0.0.56. General-purpose fixes and features should be proposed to the [upstream project](https://github.com/DmytroVasin/DrawPen) whenever they can be separated cleanly from the Fedora/Linux compatibility layer. Include the operating system and display configuration in platform-specific reports.
 
 ## License and attribution
 
