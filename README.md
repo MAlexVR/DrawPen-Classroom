@@ -38,7 +38,7 @@ See [CHANGELOG.md](CHANGELOG.md) for the complete change summary, [FEDORA_44_COS
 
 ## Installation on Fedora 44 COSMIC
 
-Download the RPM from the [Fedora 44 COSMIC release](https://github.com/MAlexVR/DrawPen-Fedora-COSMIC/releases/tag/v0.0.56-fedora44-cosmic.1), then install it with:
+Download the RPM from the [Fedora 44 COSMIC release](https://github.com/MAlexVR/DrawPen-Classroom/releases/tag/v0.0.56-fedora44-cosmic.1), then install it with:
 
 ```bash
 sudo dnf install ./drawpen-0.0.56-1.x86_64.rpm
@@ -60,7 +60,7 @@ Expected checksum:
 
 ## Installation on Windows x64
 
-Download `DrawPen-Classroom-Windows-x64.Setup.exe` from the [Windows classroom release](https://github.com/MAlexVR/DrawPen-Fedora-COSMIC/releases/tag/v0.0.56-windows-classroom.1) and run it as your normal user. Administrator privileges are not required by the Squirrel installer.
+Download `DrawPen-Classroom-Windows-x64.Setup.exe` from the [Windows classroom release](https://github.com/MAlexVR/DrawPen-Classroom/releases/tag/v0.0.56-windows-classroom.1) and run it as your normal user. Administrator privileges are not required by the Squirrel installer.
 
 > [!WARNING]
 > This community build is not digitally signed. Windows SmartScreen may display an unknown-publisher warning. Verify the SHA-256 checksum published in the release before running it. Do not disable SmartScreen globally.

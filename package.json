@@ -10,11 +10,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/MAlexVR/DrawPen-Fedora-COSMIC"
+    "url": "https://github.com/MAlexVR/DrawPen-Classroom"
   },
-  "homepage": "https://github.com/MAlexVR/DrawPen-Fedora-COSMIC#readme",
+  "homepage": "https://github.com/MAlexVR/DrawPen-Classroom#readme",
   "bugs": {
-    "url": "https://github.com/MAlexVR/DrawPen-Fedora-COSMIC/issues"
+    "url": "https://github.com/MAlexVR/DrawPen-Classroom/issues"
   },
   "private": true,
   "license": "MIT",

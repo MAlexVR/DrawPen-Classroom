@@ -50,7 +50,7 @@ module.exports = {
       platforms: ['win32'],
       config: {
         setupIcon: path.join(rootDir, 'assets/build/icon.ico'),
-        iconUrl: 'https://raw.githubusercontent.com/MAlexVR/DrawPen-Fedora-COSMIC/main/assets/build/icon.ico',
+        iconUrl: 'https://raw.githubusercontent.com/MAlexVR/DrawPen-Classroom/main/assets/build/icon.ico',
         loadingGif: path.join(rootDir, 'assets/build/loading.gif'),
         name: 'DrawPenClassroom',
         authors: 'Dmytro Vasin and DrawPen Classroom contributors',
@@ -67,7 +67,7 @@ module.exports = {
           icon: linuxIconPng,
           categories: ['Graphics', 'Utility'],
           maintainer: "Mauricio Vargas",
-          homepage: 'https://github.com/MAlexVR/DrawPen-Fedora-COSMIC'
+          homepage: 'https://github.com/MAlexVR/DrawPen-Classroom'
         }
       }
     },
@@ -77,7 +77,7 @@ module.exports = {
         options: {
           icon: linuxIconPng,
           categories: ['Graphics'],
-          homepage: 'https://github.com/MAlexVR/DrawPen-Fedora-COSMIC',
+          homepage: 'https://github.com/MAlexVR/DrawPen-Classroom',
           execArguments: ['--ozone-platform=x11', '--force-device-scale-factor=1'],
         }
       }
@@ -91,7 +91,7 @@ module.exports = {
           productName: "DrawPen (X11)",
           icon: linuxIconPng,
           categories: ['Graphics', 'Utility'],
-          homepage: 'https://github.com/MAlexVR/DrawPen-Fedora-COSMIC',
+          homepage: 'https://github.com/MAlexVR/DrawPen-Classroom',
           execArguments: ['--ozone-platform=x11'],
         }
       }
@@ -106,7 +106,7 @@ module.exports = {
           icon: linuxIconPng,
           categories: ['Graphics', 'Utility'],
           maintainer: "Mauricio Vargas",
-          homepage: 'https://github.com/MAlexVR/DrawPen-Fedora-COSMIC',
+          homepage: 'https://github.com/MAlexVR/DrawPen-Classroom',
           desktopTemplate: path.join(rootDir, 'assets/build/desktop-x11.desktop.ejs'),
         }
       }
@@ -177,7 +177,7 @@ module.exports = {
         // integration" regardless of this repo's own permissions.
         repository: {
           owner: 'MAlexVR',
-          name: 'DrawPen-Fedora-COSMIC',
+          name: 'DrawPen-Classroom',
         },
         draft: true
       }
