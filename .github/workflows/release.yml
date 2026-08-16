@@ -1,4 +1,5 @@
 name: Release Installers
+run-name: Release ${{ github.ref_name }}
 
 # Releases for this community derivative are published deliberately after
 # validation on Fedora 44 COSMIC. Manual dispatch avoids publishing untested
