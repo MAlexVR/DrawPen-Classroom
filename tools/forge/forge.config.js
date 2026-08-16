@@ -67,7 +67,10 @@ module.exports = {
           icon: linuxIconPng,
           categories: ['Graphics', 'Utility'],
           maintainer: "Mauricio Vargas",
-          homepage: 'https://github.com/MAlexVR/DrawPen-Classroom'
+          homepage: 'https://github.com/MAlexVR/DrawPen-Classroom',
+          // Same GNOME/Mutter D-Bus + PipeWire screen-capture path as the
+          // RPM builds — see the maker-rpm config below for why.
+          depends: ['gstreamer1.0-tools', 'gstreamer1.0-pipewire'],
         }
       }
     },
@@ -84,6 +87,11 @@ module.exports = {
           icon: linuxIconPng,
           categories: ['Graphics'],
           homepage: 'https://github.com/MAlexVR/DrawPen-Classroom',
+          // Full-screen capture on GNOME/Mutter talks to
+          // org.gnome.Mutter.ScreenCast directly over D-Bus (the portal's
+          // own consent dialog can get stuck) and grabs a frame from the
+          // resulting PipeWire stream via gst-launch-1.0.
+          requires: ['gstreamer1', 'pipewire-gstreamer'],
         }
       }
     },
@@ -98,6 +106,11 @@ module.exports = {
           categories: ['Graphics', 'Utility'],
           homepage: 'https://github.com/MAlexVR/DrawPen-Classroom',
           execArguments: ['--ozone-platform=x11'],
+          // Same GNOME/Mutter screen-capture path as the native-Wayland
+          // build — the X11 Ozone backend still runs under a Mutter/GNOME
+          // session here (rootless XWayland has no real root window to
+          // capture from), so it needs the same D-Bus + PipeWire pipeline.
+          requires: ['gstreamer1', 'pipewire-gstreamer'],
         }
       }
     },
@@ -113,6 +126,7 @@ module.exports = {
           maintainer: "Mauricio Vargas",
           homepage: 'https://github.com/MAlexVR/DrawPen-Classroom',
           desktopTemplate: path.join(rootDir, 'assets/build/desktop-x11.desktop.ejs'),
+          depends: ['gstreamer1.0-tools', 'gstreamer1.0-pipewire'],
         }
       }
     },

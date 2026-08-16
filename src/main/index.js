@@ -3,6 +3,7 @@ import { updateElectronApp } from 'update-electron-app';
 import Store from 'electron-store';
 import { randomUUID } from 'crypto';
 import { spawn } from 'child_process';
+import dbus from 'dbus-next';
 import { PostHog } from 'posthog-node'
 import fs from 'fs';
 import path from 'path';
@@ -336,6 +337,19 @@ let ignoreExtendedToolbarMoveEvents = false
 let containedToolbarInputShapeHelper = null
 let lastContainedToolbarPosition = null
 let containedToolbarInputShapeSettleTimeout = null
+
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error(`Timed out waiting for ${label}`))
+    }, ms)
+
+    promise.then(
+      (value) => { clearTimeout(timeout); resolve(value) },
+      (error) => { clearTimeout(timeout); reject(error) }
+    )
+  })
+}
 
 function waitForTransitionSignal(waiters, token, label) {
   return new Promise((resolve, reject) => {
@@ -1042,7 +1056,7 @@ ipcMain.handle('open_notification', (_event, info) => {
   if (info.action === 'open_screenshot') {
     enablePointerMode()
 
-    const screenshotsDirectory = path.join(app.getPath('pictures'), 'Screenshots')
+    const screenshotsDirectory = path.join(app.getPath('pictures'), 'DrawPen')
     const filePath = path.isAbsolute(info.data)
       ? info.data
       : path.join(screenshotsDirectory, info.data)
@@ -1680,31 +1694,156 @@ function quitApp() {
   });
 }
 
-function screenshotTimecode4(date) {
-  let value = date.getHours() * 3600 +
-              date.getMinutes() * 60 +
-              date.getSeconds(); // 0..86399
-
-  let code = '';
-  for (let i = 0; i < 4; i++) {
-    code = String.fromCharCode(97 + (value % 26)) + code;
-    value = Math.floor(value / 26);
-  }
-
-  return code;
+function screenshotFilename() {
+  return `DRAW-${Date.now()}.png`;
 }
 
-function screenshotFilename(withUniqSuffix = false) {
-  const date = new Date()
+// xdg-desktop-portal-gnome's interactive Screenshot/ScreenCast consent
+// dialog can get stuck (confirmed via direct D-Bus calls hanging even after
+// restarting the portal service — a GNOME Shell-side bug, not Electron's),
+// which leaves Electron's desktopCapturer.getSources() hanging forever with
+// it. Mutter itself exposes screen recording directly over D-Bus without
+// going through that broken consent flow, so on Linux this is used instead;
+// desktopCapturer remains the fallback for non-GNOME desktops and for mac/
+// Windows.
+async function getMonitorConnectorName(bus, activeMonitor) {
+  const displayConfigObj = await bus.getProxyObject('org.gnome.Mutter.DisplayConfig', '/org/gnome/Mutter/DisplayConfig')
+  const displayConfigIface = displayConfigObj.getInterface('org.gnome.Mutter.DisplayConfig')
+  const [, monitors] = await displayConfigIface.GetCurrentState()
 
-  const yyyy = date.getFullYear();
-  const mm = (date.getMonth() + 1).toString().padStart(2, '0');
-  const dd = (date.getDate()).toString().padStart(2, '0');
+  const targetWidth = Math.round(activeMonitor.size.width * (activeMonitor.scaleFactor || 1))
+  const targetHeight = Math.round(activeMonitor.size.height * (activeMonitor.scaleFactor || 1))
 
-  const code = screenshotTimecode4(date);
-  const suffix = withUniqSuffix ? `-${Date.now()}` : '';
+  for (const [monitorInfo, modes] of monitors) {
+    const currentMode = modes.find(mode => mode[6]?.['is-current']?.value)
+    if (currentMode && currentMode[1] === targetWidth && currentMode[2] === targetHeight) {
+      return monitorInfo[0]
+    }
+  }
 
-  return `DRWPN-${yyyy}${mm}${dd}-${code}${suffix}.png`;
+  // No exact resolution match (e.g. an unusual scale factor) — fall back to
+  // whichever monitor Mutter listed first rather than failing outright.
+  return monitors[0]?.[0]?.[0]
+}
+
+function grabPipeWireFrame(nodeId, outputPath) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('gst-launch-1.0', [
+      '-q', 'pipewiresrc', `path=${nodeId}`, 'num-buffers=1',
+      '!', 'videoconvert', '!', 'pngenc', '!', 'filesink', `location=${outputPath}`,
+    ])
+
+    let stderr = ''
+    proc.stderr.on('data', (chunk) => { stderr += chunk })
+    proc.on('error', reject)
+    proc.on('close', (code) => {
+      if (code === 0) resolve()
+      else reject(new Error(`gst-launch-1.0 exited with code ${code}: ${stderr.trim()}`))
+    })
+  })
+}
+
+async function captureScreenViaMutterScreenCast(activeMonitor) {
+  const bus = dbus.sessionBus()
+
+  try {
+    const connectorName = await getMonitorConnectorName(bus, activeMonitor)
+
+    const screencastObj = await bus.getProxyObject('org.gnome.Mutter.ScreenCast', '/org/gnome/Mutter/ScreenCast')
+    const screencastIface = screencastObj.getInterface('org.gnome.Mutter.ScreenCast')
+    const sessionPath = await screencastIface.CreateSession({})
+
+    const sessionObj = await bus.getProxyObject('org.gnome.Mutter.ScreenCast', sessionPath)
+    const sessionIface = sessionObj.getInterface('org.gnome.Mutter.ScreenCast.Session')
+
+    const streamPath = await sessionIface.RecordMonitor(connectorName, {})
+    const streamObj = await bus.getProxyObject('org.gnome.Mutter.ScreenCast', streamPath)
+    const streamIface = streamObj.getInterface('org.gnome.Mutter.ScreenCast.Stream')
+
+    const nodeIdPromise = new Promise((resolve) => {
+      streamIface.once('PipeWireStreamAdded', resolve)
+    })
+
+    await sessionIface.Start()
+    const nodeId = await withTimeout(nodeIdPromise, 8000, 'PipeWire screencast node')
+
+    const tempPath = path.join(os.tmpdir(), `drawpen-screencast-${Date.now()}.png`)
+    try {
+      await withTimeout(grabPipeWireFrame(nodeId, tempPath), 8000, 'PipeWire frame capture')
+      return await fs.promises.readFile(tempPath)
+    } finally {
+      fs.promises.unlink(tempPath).catch(() => {})
+      sessionIface.Stop().catch(() => {})
+    }
+  } finally {
+    bus.disconnect()
+  }
+}
+
+async function captureScreenViaDesktopCapturer(activeMonitor) {
+  if (isMac) {
+    const status = systemPreferences.getMediaAccessStatus('screen');
+    if (status !== 'granted') {
+      // NOTE: Adds an app to Screen & System Audio Recording list
+      try {
+        await desktopCapturer.getSources({
+          types: ['screen'],
+          thumbnailSize: { width: 1, height: 1 },
+        });
+      } catch (_) {}
+
+      throw new Error('Screen Recording permission is not granted.');
+    }
+  }
+
+  const thumbnailSize = {
+    width: Math.round(activeMonitor.size.width * (activeMonitor.scaleFactor || 1)),
+    height: Math.round(activeMonitor.size.height * (activeMonitor.scaleFactor || 1)),
+  };
+
+  // desktopCapturer.getSources() has been observed to hang indefinitely
+  // (never resolving or rejecting) under native Wayland + Mutter with this
+  // Electron version — the underlying xdg-desktop-portal Screenshot/
+  // ScreenCast request never gets a response, with no error surfaced by
+  // Chromium. Time it out explicitly so screenshot failures are reported
+  // instead of leaving the user waiting forever with no feedback.
+  const sources = await withTimeout(
+    desktopCapturer.getSources({ types: ['screen'], thumbnailSize }),
+    10000,
+    'screen capture request (check your desktop\'s screen-sharing/screenshot permission)'
+  );
+
+  if (sources.length === 0) {
+    throw new Error('No screen sources available for capture.')
+  }
+
+  const source =
+    sources.find(s => String(s.display_id ?? s.displayId ?? '') === String(activeMonitor.id)) ||
+    sources.find(source => {
+      const { width, height } = source.thumbnail.getSize()
+      return width === thumbnailSize.width && height === thumbnailSize.height
+    }) ||
+    sources[0];
+
+  const image = source.thumbnail;
+
+  if (!image || image.isEmpty()) {
+    throw new Error('Could not capture the screen.')
+  }
+
+  return image.toPNG();
+}
+
+async function captureScreenBuffer(activeMonitor) {
+  if (isLinux) {
+    try {
+      return await captureScreenViaMutterScreenCast(activeMonitor)
+    } catch (mutterError) {
+      rawLog('Mutter ScreenCast capture failed, falling back to desktopCapturer:', mutterError.message)
+    }
+  }
+
+  return captureScreenViaDesktopCapturer(activeMonitor)
 }
 
 async function makeScreenshot() {
@@ -1715,60 +1854,15 @@ async function makeScreenshot() {
   try {
     rawLog('Exporting as PNG...')
 
-    if (isMac) {
-      const status = systemPreferences.getMediaAccessStatus('screen');
-      if (status !== 'granted') {
-        // NOTE: Adds an app to Screen & System Audio Recording list
-        try {
-          await desktopCapturer.getSources({
-            types: ['screen'],
-            thumbnailSize: { width: 1, height: 1 },
-          });
-        } catch (_) {}
-
-        throw new Error('Screen Recording permission is not granted.');
-      }
-    }
-
     const activeMonitor = getLockedMonitor() || getActiveMonitor() || getUnderCursorMonitor()
+    const pngBuffer = await captureScreenBuffer(activeMonitor)
 
-    const thumbnailSize = {
-      width: Math.round(activeMonitor.size.width * (activeMonitor.scaleFactor || 1)),
-      height: Math.round(activeMonitor.size.height * (activeMonitor.scaleFactor || 1)),
-    };
-
-    const sources = await desktopCapturer.getSources({
-      types: ['screen'],
-      thumbnailSize,
-    });
-
-    if (sources.length === 0) {
-      throw new Error('No screen sources available for capture.')
-    }
-
-    const source =
-      sources.find(s => String(s.display_id ?? s.displayId ?? '') === String(activeMonitor.id)) ||
-      sources.find(source => {
-        const { width, height } = source.thumbnail.getSize()
-        return width === thumbnailSize.width && height === thumbnailSize.height
-      }) ||
-      sources[0];
-
-    const image = source.thumbnail;
-
-    if (!image || image.isEmpty()) {
-      throw new Error('Could not capture the screen.')
-    }
-
-    const screenshotsDirectory = path.join(app.getPath('pictures'), 'Screenshots');
+    const screenshotsDirectory = path.join(app.getPath('pictures'), 'DrawPen');
     await fs.promises.mkdir(screenshotsDirectory, { recursive: true });
 
-    let savePath = path.join(screenshotsDirectory, screenshotFilename());
-    if (fs.existsSync(savePath)) {
-      savePath = path.join(screenshotsDirectory, screenshotFilename(true));
-    }
+    const savePath = path.join(screenshotsDirectory, screenshotFilename());
 
-    await fs.promises.writeFile(savePath, image.toPNG());
+    await fs.promises.writeFile(savePath, pngBuffer);
 
     sendNotification({
       title: `Click to open ${isMac ? 'in Finder' : 'folder'}`,
