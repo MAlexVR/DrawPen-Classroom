@@ -20,7 +20,14 @@ const isLoggingEnabled = isDevelopment || isDebugLoggingEnabled
 const isMac = process.platform === 'darwin'
 const isLinux = process.platform === 'linux'
 const isWin = process.platform === 'win32'
-const isCosmic = isLinux && (process.env.XDG_CURRENT_DESKTOP || '').toLowerCase().includes('cosmic')
+// Gates the X11 input-shape/window workarounds (XShape extension, X11
+// positioning quirks) this fork needs whenever Electron is actually running
+// through Ozone's X11 backend — true under any desktop launched with
+// --ozone-platform=x11 (COSMIC, GNOME, etc.), not tied to one desktop.
+// XDG_SESSION_TYPE would be wrong here: it reports the *session's* compositor
+// (wayland even when this process itself runs under XWayland), not this
+// process's actual Ozone backend.
+const isX11 = isLinux && app.commandLine.getSwitchValue('ozone-platform') === 'x11'
 
 if (isWin) {
   // Keep this community build separate from the official DrawPen shortcut,
@@ -360,7 +367,7 @@ ipcMain.on('extended_toolbar_concealed', (event, token, concealed) => {
 })
 
 ipcMain.on('move_contained_toolbar', (event, position, finished) => {
-  if (!isCosmic || event.sender !== extendedToolbarWindow?.webContents) return;
+  if (!isX11 || event.sender !== extendedToolbarWindow?.webContents) return;
   if (!Number.isFinite(position?.x) || !Number.isFinite(position?.y)) return;
 
   applyContainedToolbarPosition(position, { storePosition: Boolean(finished) })
@@ -567,14 +574,14 @@ function createExtendedToolbarWindow() {
   let hasDevTools = false
 
   const initialDisplay = getLockedMonitor() || getActiveMonitor() || getUnderCursorMonitor()
-  const initialX = isCosmic
+  const initialX = isX11
     ? initialDisplay.workArea.x
     : initialDisplay.workArea.x + store.get('tool_bar_x') - EXTENDED_TOOLBAR_WINDOW_MARGIN
-  const initialY = isCosmic
+  const initialY = isX11
     ? initialDisplay.workArea.y
     : initialDisplay.workArea.y + store.get('tool_bar_y') - EXTENDED_TOOLBAR_WINDOW_MARGIN
-  const initialWidth = isCosmic ? initialDisplay.workArea.width : EXTENDED_TOOLBAR_WINDOW_WIDTH
-  const initialHeight = isCosmic ? initialDisplay.workArea.height : EXTENDED_TOOLBAR_WINDOW_HEIGHT
+  const initialWidth = isX11 ? initialDisplay.workArea.width : EXTENDED_TOOLBAR_WINDOW_WIDTH
+  const initialHeight = isX11 ? initialDisplay.workArea.height : EXTENDED_TOOLBAR_WINDOW_HEIGHT
 
   if (isDevelopment) {
     hasDevTools = true
@@ -592,7 +599,7 @@ function createExtendedToolbarWindow() {
     minimizable: false,
     maximizable: false,
     frame: false,
-    type: isLinux && !isCosmic ? 'toolbar' : undefined,
+    type: isLinux && !isX11 ? 'toolbar' : undefined,
     hasShadow: false,
     alwaysOnTop: true,
     skipTaskbar: true,
@@ -643,7 +650,7 @@ function createExtendedToolbarWindow() {
   })
 
   extendedToolbarWindow.on('move', () => {
-    if (isCosmic) return;
+    if (isX11) return;
 
     if (ignoreExtendedToolbarMoveEvents) {
       if (extendedToolbarProgrammaticMoveTimeout) {
@@ -1449,7 +1456,7 @@ async function enablePointerMode(toolbarScreenPosition = null) {
     const requestedBounds = updateExtendedToolbarWindowPosition(currentDisplay)
     const settledBounds = await waitForExtendedToolbarBoundsToSettle(requestedBounds)
 
-    if (isCosmic) {
+    if (isX11) {
       configureContainedToolbar(currentDisplay, settledBounds)
     }
 
@@ -1485,14 +1492,14 @@ async function showInitialPointerMode() {
   showWindow(extendedToolbarWindow, { inactive: true })
   const settledBounds = await waitForExtendedToolbarBoundsToSettle(requestedBounds)
 
-  if (isCosmic) {
+  if (isX11) {
     configureContainedToolbar(currentDisplay, settledBounds)
   }
 
   // If the compositor insists on another initial placement, make that real
   // position authoritative before the first mode switch. This prevents the
   // first Draw Mode transition from jumping to stale stored coordinates.
-  if (!isCosmic && (settledBounds.x !== requestedBounds.x || settledBounds.y !== requestedBounds.y)) {
+  if (!isX11 && (settledBounds.x !== requestedBounds.x || settledBounds.y !== requestedBounds.y)) {
     storeToolbarPositionFromExtendedWindow()
   }
 
@@ -1825,7 +1832,7 @@ function clampContainedToolbarPosition(position, windowBounds) {
 }
 
 function setContainedToolbarInputRegion(position) {
-  if (!isCosmic || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return;
+  if (!isX11 || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return;
 
   lastContainedToolbarPosition = position
   writeContainedToolbarInputShape(position)
@@ -1850,7 +1857,7 @@ function getContainedToolbarInputShapeHelperPath() {
 }
 
 function ensureContainedToolbarInputShapeHelper() {
-  if (!isCosmic || containedToolbarInputShapeHelper) return containedToolbarInputShapeHelper;
+  if (!isX11 || containedToolbarInputShapeHelper) return containedToolbarInputShapeHelper;
   if (!extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return null;
 
   const windowId = getExtendedToolbarNativeWindowId()
@@ -1899,7 +1906,7 @@ function writeContainedToolbarInputShape(position) {
 }
 
 function reapplyContainedToolbarInputShape() {
-  if (!isCosmic || !lastContainedToolbarPosition) return;
+  if (!isX11 || !lastContainedToolbarPosition) return;
 
   writeContainedToolbarInputShape(lastContainedToolbarPosition)
 
@@ -1935,7 +1942,7 @@ function stopContainedToolbarInputShapeHelper() {
 }
 
 function configureContainedToolbar(display, windowBounds = extendedToolbarWindow.getContentBounds()) {
-  if (!isCosmic || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return null;
+  if (!isX11 || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return null;
 
   const requestedScreenX = display.workArea.x + store.get('tool_bar_x')
   const requestedScreenY = display.workArea.y + store.get('tool_bar_y')
@@ -1958,7 +1965,7 @@ function configureContainedToolbar(display, windowBounds = extendedToolbarWindow
 }
 
 function applyContainedToolbarPosition(requestedPosition, { storePosition = false } = {}) {
-  if (!isCosmic || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return;
+  if (!isX11 || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return;
 
   const windowBounds = extendedToolbarWindow.getContentBounds()
   const position = clampContainedToolbarPosition(requestedPosition, windowBounds)
@@ -1994,7 +2001,7 @@ function applyContainedToolbarPosition(requestedPosition, { storePosition = fals
 
 function storeToolbarPositionFromExtendedWindow() {
   if (!extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return;
-  if (isCosmic) return;
+  if (isX11) return;
 
   const toolbarBounds = extendedToolbarWindow.getBounds()
   const currentDisplay = getLockedMonitor() || screen.getDisplayMatching(toolbarBounds)
@@ -2042,7 +2049,7 @@ function flushExtendedToolbarPosition({ force = false } = {}) {
     extendedToolbarPositionStoreTimeout = null
   }
 
-  if (!isCosmic &&
+  if (!isX11 &&
     extendedToolbarWindow &&
     !extendedToolbarWindow.isDestroyed() &&
     (force || extendedToolbarWindow.isVisible())
@@ -2091,7 +2098,7 @@ function showExtendedToolbarWindow() {
 }
 
 function updateExtendedToolbarWindowPosition(display) {
-  if (isCosmic) {
+  if (isX11) {
     const requestedBounds = { ...display.workArea }
 
     extendedToolbarWindow.setBounds(requestedBounds)
@@ -2148,12 +2155,12 @@ function waitForExtendedToolbarBoundsToSettle(requestedBounds) {
       stableChecks = matchesPrevious ? stableChecks + 1 : 0
       previousBounds = currentBounds
 
-      if (stableChecks >= 2 && (matchesRequested || isCosmic)) {
+      if (stableChecks >= 2 && (matchesRequested || isX11)) {
         resolve(currentBounds)
         return
       }
 
-      if (!matchesRequested && !isCosmic) {
+      if (!matchesRequested && !isX11) {
         extendedToolbarWindow.setBounds(requestedBounds)
       }
 
