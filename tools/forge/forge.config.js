@@ -169,9 +169,15 @@ module.exports = {
     {
       name: '@electron-forge/publisher-github',
       config: {
+        // packageJson.author.name/productName are the upstream project's
+        // ("DmytroVasin"/"DrawPen"), not this fork's — using them here
+        // pointed every release at DmytroVasin/DrawPen instead of this
+        // repo, so the workflow's own GITHUB_TOKEN had no access to it
+        // and every publish failed with "Resource not accessible by
+        // integration" regardless of this repo's own permissions.
         repository: {
-          owner: packageJson.author.name,
-          name: packageJson.productName,
+          owner: 'MAlexVR',
+          name: 'DrawPen-Fedora-COSMIC',
         },
         draft: true
       }
