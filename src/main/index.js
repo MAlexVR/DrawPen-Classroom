@@ -175,6 +175,18 @@ const schema = {
     maximum: 50,
     default: 5
   },
+  dashed_line_dash_size: {
+    type: 'number',
+    minimum: 0,
+    maximum: 4,
+    default: 0.01
+  },
+  dashed_line_spacing: {
+    type: 'number',
+    minimum: 1,
+    maximum: 8,
+    default: 3.5
+  },
   tool_bar_default_brush: {
     type: 'string',
     default: 'pen'
@@ -938,6 +950,8 @@ ipcMain.handle('get_settings', () => {
     table_columns: store.get('table_columns'),
     number_line_min: store.get('number_line_min'),
     number_line_max: store.get('number_line_max'),
+    dashed_line_dash_size: store.get('dashed_line_dash_size'),
+    dashed_line_spacing: store.get('dashed_line_spacing'),
     tool_bar_default_brush: store.get('tool_bar_default_brush'),
     tool_bar_default_figure: store.get('tool_bar_default_figure'),
     tool_bar_collapsed: store.get('tool_bar_collapsed'),
@@ -1298,6 +1312,8 @@ function refreshSettingsInRenderer() {
     table_columns:           store.get('table_columns'),
     number_line_min:         store.get('number_line_min'),
     number_line_max:         store.get('number_line_max'),
+    dashed_line_dash_size:   store.get('dashed_line_dash_size'),
+    dashed_line_spacing:     store.get('dashed_line_spacing'),
     tool_bar_color_palette:  store.get('tool_bar_color_palette'),
     swap_colors_indexes:     store.get('swap_colors_indexes'),
     clear_drawings_on_hide:  store.get('clear_drawings_on_hide'),

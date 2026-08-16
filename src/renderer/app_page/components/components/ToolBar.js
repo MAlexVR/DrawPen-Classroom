@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import "./ToolBar.scss";
-import { brushList, shapeList, widthList } from "../constants.js";
+import {
+  brushList,
+  shapeList,
+  widthList,
+  dashedLineMinDashSize,
+  dashedLineMaxDashSize,
+  dashedLineMinSpacing,
+  dashedLineMaxSpacing,
+} from "../constants.js";
 
 const STICKY_DISTANCE = 15;
 const ZONE_BORDER = 10; // Equals to "--border-size"*2
@@ -25,6 +33,7 @@ const ToolBar = ({
   handleChangeBrushSize,
   handleChangeTableDimensions,
   handleChangeNumberLineRange,
+  handleChangeDashedLineStyle,
   handleChangeTool,
   handleClearDesk,
   handleSetWhiteboardMode,
@@ -39,6 +48,8 @@ const ToolBar = ({
   tableColumns,
   numberLineMin,
   numberLineMax,
+  dashedLineDashSize,
+  dashedLineSpacing,
   Icons,
   colorList,
 }) => {
@@ -53,6 +64,7 @@ const ToolBar = ({
     circle: <Icons.Circle />,
     triangle: <Icons.Triangle />,
     line: <Icons.Line />,
+    dashed_line: <Icons.DashedLine />,
     number_line: <Icons.NumberLine />,
     table: <Icons.Table />,
     text: <Icons.Text />,
@@ -244,6 +256,7 @@ const ToolBar = ({
       circle:      ["Circle"],
       triangle:    ["Triangle"],
       line:        ["Line"],
+      dashed_line: ["Dashed Line"],
       number_line: ["Number Line", "N"],
       table:       ["Table / Matrix"],
       text:        ["Text",        "T"],
@@ -442,6 +455,11 @@ const ToolBar = ({
                   <Icons.Line />
                 </button>
               </li>
+              <li className={activeTool === "dashed_line" ? "active more_figures" : "more_figures"} onClick={() => setToolbarSlide("dashed-line-slide")}>
+                <button tabIndex={-1} title={renderToolTitle("dashed_line")}>
+                  <Icons.DashedLine />
+                </button>
+              </li>
               <li className={activeTool === "arrow" ? "active" : undefined} onClick={() => pickTool("arrow")}>
                 <button tabIndex={-1} title={renderToolTitle("arrow", "2")}>
                   <Icons.Arrow />
@@ -561,6 +579,51 @@ const ToolBar = ({
               </div>
               <button className="toolbar__number-line-use" tabIndex={-1} title="Draw Number Line" onClick={() => pickTool("number_line")}>
                 <Icons.NumberLine />
+              </button>
+            </div>
+          </div>
+
+          <div className="side-view-body dashed-line-group">
+            <div className="toolbar__dashed-line-control">
+              <svg className="toolbar__dashed-line-preview" viewBox="0 0 140 20" aria-hidden="true">
+                <line
+                  x1="10" y1="10" x2="130" y2="10"
+                  stroke={activeColor.color}
+                  strokeWidth={widthList[activeWidthIndex].figure_size}
+                  strokeLinecap="round"
+                  strokeDasharray={`${widthList[activeWidthIndex].figure_size * dashedLineDashSize} ${widthList[activeWidthIndex].figure_size * dashedLineSpacing}`}
+                />
+              </svg>
+              <label title="Dash size">
+                <span>Size</span>
+                <input
+                  type="range"
+                  min={dashedLineMinDashSize}
+                  max={dashedLineMaxDashSize}
+                  step="0.05"
+                  value={dashedLineDashSize}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  aria-label="Dashed line dash size"
+                  title="Dash size: dot to pill"
+                  onChange={(event) => handleChangeDashedLineStyle(Number(event.target.value), dashedLineSpacing)}
+                />
+              </label>
+              <label title="Spacing">
+                <span>Spacing</span>
+                <input
+                  type="range"
+                  min={dashedLineMinSpacing}
+                  max={dashedLineMaxSpacing}
+                  step="0.25"
+                  value={dashedLineSpacing}
+                  onKeyDown={(event) => event.stopPropagation()}
+                  aria-label="Dashed line spacing"
+                  title="Spacing between dashes"
+                  onChange={(event) => handleChangeDashedLineStyle(dashedLineDashSize, Number(event.target.value))}
+                />
+              </label>
+              <button className="toolbar__dashed-line-use" tabIndex={-1} title="Draw Dashed Line" onClick={() => pickTool("dashed_line")}>
+                <Icons.DashedLine />
               </button>
             </div>
           </div>

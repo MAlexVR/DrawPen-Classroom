@@ -34,7 +34,7 @@ import { GiLaserburn } from "react-icons/gi";
 import { MdOutlineClose } from "react-icons/md";
 import { FaFont } from "react-icons/fa6";
 import { LuSquareMousePointer, LuPresentation, LuCamera, LuTable2, LuRectangleHorizontal, LuCircle, LuTriangle, LuPalette, LuRuler } from "react-icons/lu";
-import { TbOval } from "react-icons/tb";
+import { TbOval, TbLineDashed } from "react-icons/tb";
 import FaMagicPaintBrush from "./components/icons/FaMagicPaintBrush.js";
 
 import {
@@ -65,6 +65,7 @@ const Icons = {
   Oval: TbOval,
   Triangle: LuTriangle,
   Line: AiOutlineLine,
+  DashedLine: TbLineDashed,
   Text: FaFont,
   Highlighter: FaHighlighter,
   Laser: GiLaserburn,
@@ -95,6 +96,8 @@ const Application = (settings) => {
   const initialTableColumns = settings.table_columns
   const initialNumberLineMin = settings.number_line_min
   const initialNumberLineMax = settings.number_line_max
+  const initialDashedLineDashSize = settings.dashed_line_dash_size
+  const initialDashedLineSpacing = settings.dashed_line_spacing
   const initialShowToolbar = settings.show_tool_bar
   const initialShowWhiteboard = settings.show_whiteboard
   const initialWhiteboardTheme = settings.whiteboard_color
@@ -155,6 +158,8 @@ const Application = (settings) => {
   const [tableColumns, setTableColumns] = useState(initialTableColumns);
   const [numberLineMin, setNumberLineMin] = useState(initialNumberLineMin);
   const [numberLineMax, setNumberLineMax] = useState(initialNumberLineMax);
+  const [dashedLineDashSize, setDashedLineDashSize] = useState(initialDashedLineDashSize);
+  const [dashedLineSpacing, setDashedLineSpacing] = useState(initialDashedLineSpacing);
   const [isDrawing, setIsDrawing] = useState(false);
   const [textEditorContainer, setTextEditorContainer] = useState(null);
   const [cursorType, setCursorType] = useState('crosshair');
@@ -702,6 +707,8 @@ const Application = (settings) => {
         table_columns: tableColumns,
         number_line_min: numberLineMin,
         number_line_max: numberLineMax,
+        dashed_line_dash_size: dashedLineDashSize,
+        dashed_line_spacing: dashedLineSpacing,
         tool_bar_default_brush: toolbarLastActiveBrush,
         tool_bar_default_figure: toolbarLastActiveFigure,
         tool_bar_collapsed: toolbarCollapsed,
@@ -713,7 +720,7 @@ const Application = (settings) => {
     return () => {
       debouncedUpdateSettings.cancel();
     };
-  }, [showWhiteboard, showToolbar, activeTool, activeColorIndex, activeWidthIndex, brushSize, tableRows, tableColumns, numberLineMin, numberLineMax, toolbarLastActiveBrush, toolbarLastActiveFigure, toolbarCollapsed]);
+  }, [showWhiteboard, showToolbar, activeTool, activeColorIndex, activeWidthIndex, brushSize, tableRows, tableColumns, numberLineMin, numberLineMax, dashedLineDashSize, dashedLineSpacing, toolbarLastActiveBrush, toolbarLastActiveFigure, toolbarCollapsed]);
 
   useEffect(() => {
     if (!activeFigureInfo) { return }
@@ -732,6 +739,10 @@ const Application = (settings) => {
     if (activeFigure.type === 'number_line') {
       setNumberLineMin(activeFigure.minimum)
       setNumberLineMax(activeFigure.maximum)
+    }
+    if (activeFigure.type === 'dashed_line' && Number.isFinite(activeFigure.dashSize) && Number.isFinite(activeFigure.dashSpacing)) {
+      setDashedLineDashSize(activeFigure.dashSize)
+      setDashedLineSpacing(activeFigure.dashSpacing)
     }
   }, [activeFigureInfo])
 
@@ -968,6 +979,25 @@ const Application = (settings) => {
     setAllFigures([...allFigures]);
   };
 
+  const handleChangeDashedLineStyle = (dashSize, spacing) => {
+    const normalizedDashSize = Math.min(4, Math.max(0, Number(dashSize)));
+    const normalizedSpacing = Math.min(8, Math.max(1, Number(spacing)));
+
+    if (!Number.isFinite(normalizedDashSize) || !Number.isFinite(normalizedSpacing)) return;
+
+    if (activeFigureInfo) {
+      const activeFigure = findActiveFigure();
+      if (activeFigure?.type === 'dashed_line') {
+        activeFigure.dashSize = normalizedDashSize;
+        activeFigure.dashSpacing = normalizedSpacing;
+      }
+    }
+
+    setDashedLineDashSize(normalizedDashSize);
+    setDashedLineSpacing(normalizedSpacing);
+    setAllFigures([...allFigures]);
+  };
+
   const handleChangeTool = (toolName) => {
     if (activeTool === toolName) {
       return
@@ -1024,7 +1054,7 @@ const Application = (settings) => {
   }
 
   const getResizeCursorByFigure = (figure, resizingDotName) => {
-    if (['line', 'arrow', 'flat_arrow', 'number_line'].includes(figure.type)) {
+    if (['line', 'dashed_line', 'arrow', 'flat_arrow', 'number_line'].includes(figure.type)) {
       return 'pointer';
     }
 
@@ -1224,6 +1254,8 @@ const Application = (settings) => {
       columns: activeTool === 'table' ? tableColumns : undefined,
       minimum: activeTool === 'number_line' ? numberLineMin : undefined,
       maximum: activeTool === 'number_line' ? numberLineMax : undefined,
+      dashSize: activeTool === 'dashed_line' ? dashedLineDashSize : undefined,
+      dashSpacing: activeTool === 'dashed_line' ? dashedLineSpacing : undefined,
     };
 
     if (shapeList.includes(newFigure.type)) {
@@ -1318,7 +1350,7 @@ const Application = (settings) => {
         }
 
         if (isShiftPressed) {
-          if (['line', 'arrow', 'flat_arrow'].includes(currentFigure.type)) {
+          if (['line', 'dashed_line', 'arrow', 'flat_arrow'].includes(currentFigure.type)) {
             const startPoint = currentFigure.points[0];
 
             const result = applySoftSnap(startPoint[0], startPoint[1], x, y);
@@ -1583,6 +1615,8 @@ const Application = (settings) => {
     setTableColumns(newSettings.table_columns);
     setNumberLineMin(newSettings.number_line_min);
     setNumberLineMax(newSettings.number_line_max);
+    setDashedLineDashSize(newSettings.dashed_line_dash_size);
+    setDashedLineSpacing(newSettings.dashed_line_spacing);
     setClearDrawingsOnHide(newSettings.clear_drawings_on_hide);
     setMainColorIndex(newSettings.swap_colors_indexes[0]);
     setSecondaryColorIndex(newSettings.swap_colors_indexes[1]);
@@ -1890,6 +1924,7 @@ const Application = (settings) => {
             handleChangeBrushSize={handleChangeBrushSize}
             handleChangeTableDimensions={handleChangeTableDimensions}
             handleChangeNumberLineRange={handleChangeNumberLineRange}
+            handleChangeDashedLineStyle={handleChangeDashedLineStyle}
             handleChangeTool={handleChangeTool}
             handleClearDesk={handleReset}
             handleSetWhiteboardMode={handleSetWhiteboardMode}
@@ -1904,6 +1939,8 @@ const Application = (settings) => {
             tableColumns={tableColumns}
             numberLineMin={numberLineMin}
             numberLineMax={numberLineMax}
+            dashedLineDashSize={dashedLineDashSize}
+            dashedLineSpacing={dashedLineSpacing}
             Icons={Icons}
             colorList={colorList}
           />

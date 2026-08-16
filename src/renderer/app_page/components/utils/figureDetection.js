@@ -291,6 +291,7 @@ export const isOnFigure = (x, y, figure) => {
     case 'triangle':
       return isOnTriangle(x, y, figure)
     case 'line':
+    case 'dashed_line':
     case 'number_line':
       return isOnLine(x, y, figure)
     case 'table':
@@ -543,6 +544,7 @@ export const areFiguresIntersecting = (eraserFigure, figure) => {
     case 'circle':
       return isSegmentTouchOval(eraserFigure.points, figure)
     case 'line':
+    case 'dashed_line':
     case 'number_line':
       return isSegmentTouchLine(eraserFigure.points, figure)
     case 'text':
@@ -555,6 +557,7 @@ export const areFiguresIntersecting = (eraserFigure, figure) => {
 export const getDotNameOnFigure = (x, y, figure) => {
   switch (figure.type) {
     case 'line':
+    case 'dashed_line':
     case 'arrow':
     case 'flat_arrow':
     case 'number_line':
@@ -574,7 +577,7 @@ export const getDotNameOnFigure = (x, y, figure) => {
 };
 
 export const getDotCoordinates = (figure, dotName) => {
-  if (['line', 'arrow', 'flat_arrow', 'number_line'].includes(figure.type)) {
+  if (['line', 'dashed_line', 'arrow', 'flat_arrow', 'number_line'].includes(figure.type)) {
     if (dotName === 'pointA') return figure.points[0];
     if (dotName === 'pointB') return figure.points[1];
   }
@@ -668,7 +671,7 @@ export const resizeFigure = (figure, activeFigureInfo, { x, y, isShiftPressed })
   }
 
   if (isShiftPressed) {
-    if (['line', 'arrow', 'flat_arrow'].includes(figure.type)) {
+    if (['line', 'dashed_line', 'arrow', 'flat_arrow'].includes(figure.type)) {
       let pointA = figure.points[0];
       let pointB = figure.points[1];
 

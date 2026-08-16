@@ -10,6 +10,8 @@ import {
   drawRainbowHighlighter,
   drawLine,
   drawLineActive,
+  drawDashedLine,
+  drawDashedLineActive,
   drawNumberLine,
   drawNumberLineActive,
   drawArrow,
@@ -128,6 +130,14 @@ const DrawDesk = ({
 
         if (activeFigureInfo && figure.id === activeFigureInfo.id) {
           drawLineActive(ctx, figure, activeFigureInfo.hoveredDotName, colorList)
+        }
+      }
+
+      if (figure.type === 'dashed_line') {
+        drawDashedLine(ctx, figure, updateRainbowColorDeg, colorList)
+
+        if (activeFigureInfo && figure.id === activeFigureInfo.id) {
+          drawDashedLineActive(ctx, figure, activeFigureInfo.hoveredDotName, colorList)
         }
       }
 

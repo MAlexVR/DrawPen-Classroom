@@ -28,7 +28,7 @@ export const palmMinContactLength = 35; // Min touch contact length to detect a 
 export const palmMinContactArea = 2000;
 
 export const brushList = ['pen', 'fadepen'];
-export const shapeList = ['line', 'arrow', 'flat_arrow', 'square', 'rectangle', 'circle', 'oval', 'triangle', 'table', 'number_line'];
+export const shapeList = ['line', 'dashed_line', 'arrow', 'flat_arrow', 'square', 'rectangle', 'circle', 'oval', 'triangle', 'table', 'number_line'];
 export const penVariantList = ['pen', 'fadepen'];
 export const arrowVariantList = ['arrow', 'flat_arrow'];
 
@@ -117,3 +117,13 @@ export const widthList = [
 
 export const erasedFigureColor = '#D3D3D3'; // lightgray
 export const eraserTailColor = '#69696969'; // dimgray with opacity
+
+// Ratios relative to stroke width. A near-zero dash size collapses to a
+// round dot (the round line cap fills it out to a circle whose diameter
+// equals the stroke width); raising it stretches that into a "pill" dash.
+export const dashedLineDefaultDashSize = 0.01;
+export const dashedLineMinDashSize = 0;
+export const dashedLineMaxDashSize = 4;
+export const dashedLineDefaultSpacing = 3.5;
+export const dashedLineMinSpacing = 1;
+export const dashedLineMaxSpacing = 8;

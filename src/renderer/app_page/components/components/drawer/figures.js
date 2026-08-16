@@ -20,6 +20,8 @@ import {
   eraserTailColor,
   highlighterAlpha,
   eraserAlpha,
+  dashedLineDefaultDashSize,
+  dashedLineDefaultSpacing,
 } from '../../constants.js'
 
 const hslColor = (degree) => {
@@ -341,6 +343,22 @@ export const drawLineActive = (ctx, figure, hoveredDot, colorList) => {
   drawDotsForFigure(ctx, figure, hoveredDot)
 }
 
+export const drawDashedLine = (ctx, figure, updateRainbowColorDeg, colorList) => {
+  const { points: [pointA, pointB] } = figure
+  const [color, width] = detectColorAndWidth(ctx, figure, updateRainbowColorDeg, colorList)
+
+  drawLineSkeleton(ctx, pointA, pointB, color, width, true, figure.dashSize, figure.dashSpacing)
+}
+
+export const drawDashedLineActive = (ctx, figure, hoveredDot, colorList) => {
+  const [pointA, pointB] = figure.points
+  const [color, width] = activeColorAndWidth(figure, colorList)
+
+  drawLineSkeleton(ctx, pointA, pointB, color, width, true, figure.dashSize, figure.dashSpacing)
+
+  drawDotsForFigure(ctx, figure, hoveredDot)
+}
+
 const drawAxisArrowHead = (ctx, tip, direction, color, size) => {
   const [tipX, tipY] = tip
   const [directionX, directionY] = direction
@@ -458,7 +476,7 @@ export const drawNumberLineActive = (ctx, figure, hoveredDot) => {
   drawDotsForFigure(ctx, figure, hoveredDot)
 }
 
-const drawLineSkeleton = (ctx, pointA, pointB, color, width) => {
+const drawLineSkeleton = (ctx, pointA, pointB, color, width, dashed = false, dashSize, dashSpacing) => {
   const [startX, startY] = pointA;
   const [endX, endY] = pointB;
 
@@ -466,10 +484,28 @@ const drawLineSkeleton = (ctx, pointA, pointB, color, width) => {
   ctx.lineWidth = width;
   ctx.lineCap = 'round';
 
+  if (dashed) {
+    // Ratios relative to stroke width. A near-zero dash length collapses to
+    // a small round dot (the round line cap fills it out to a circle whose
+    // diameter equals the stroke width) instead of an elongated pill;
+    // raising it stretches that into a longer dash. Older saved figures
+    // predate these per-figure fields, so fall back to the old look.
+    const resolvedDashSize = Number.isFinite(dashSize) ? dashSize : dashedLineDefaultDashSize;
+    const resolvedSpacing = Number.isFinite(dashSpacing) ? dashSpacing : dashedLineDefaultSpacing;
+
+    ctx.setLineDash([width * resolvedDashSize, width * resolvedSpacing]);
+  }
+
   ctx.beginPath();
   ctx.moveTo(startX, startY);
   ctx.lineTo(endX, endY);
   ctx.stroke();
+
+  if (dashed) {
+    // The dash pattern persists on the shared canvas context otherwise,
+    // silently turning later solid strokes dashed too.
+    ctx.setLineDash([]);
+  }
 };
 
 export const drawOval = (ctx, figure, updateRainbowColorDeg, colorList) => {
