@@ -1,5 +1,19 @@
 # Change Log
 
+## [0.0.58] - 2026-08-16
+
+### Platform compatibility
+
+- Run natively on Wayland instead of forcing X11.
+- Fix a main-process CPU-pegging hang on native Wayland caused by `getCursorScreenPoint()`.
+- Fix the toolbar reveal handshake deadlocking under native Wayland.
+- Stop spurious startup display-change events from hiding the app right after launch.
+- Fix the toolbar jumping position when switching between Pointer and Draw mode under native Wayland by porting the X11 "contained toolbar" architecture to all of Linux.
+
+### Classroom tools
+
+- Add a dashed line drawing tool, with adjustable dash size and spacing sliders and a live preview.
+
 ## [0.0.57] - 2026-08-15
 
 ### Platform compatibility
