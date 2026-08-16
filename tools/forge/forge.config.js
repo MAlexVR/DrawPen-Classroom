@@ -72,13 +72,18 @@ module.exports = {
       }
     },
     {
+      // Native Wayland by default. Global shortcuts (show/hide via
+      // keybinding) don't register under GNOME 50's Wayland session yet —
+      // Electron doesn't complete the xdg-desktop-portal GlobalShortcuts
+      // handshake there (electron/electron#51875, unresolved upstream as of
+      // this writing). Use the tray icon instead, or install drawpen-x11 if
+      // the keybinding is required.
       name: "@electron-forge/maker-rpm",
       config: {
         options: {
           icon: linuxIconPng,
           categories: ['Graphics'],
           homepage: 'https://github.com/MAlexVR/DrawPen-Classroom',
-          execArguments: ['--ozone-platform=x11', '--force-device-scale-factor=1'],
         }
       }
     },

@@ -29,6 +29,19 @@ const isWin = process.platform === 'win32'
 // process's actual Ozone backend.
 const isX11 = isLinux && app.commandLine.getSwitchValue('ozone-platform') === 'x11'
 
+// The "contained toolbar" architecture (a fixed, full-screen, invisible
+// container window that never moves, with the visible toolbar positioned by
+// CSS/DOM inside it) sidesteps a real Wayland limitation: clients can't
+// reliably query or set their own absolute screen position there, so the
+// alternative — a small window the OS is asked to move around — silently
+// fails (getBounds() keeps reporting {x:0, y:0}), which broke the toolbar's
+// position sync between Pointer and Draw Mode under native Wayland. Since
+// the container's own position never changes, this works equally well under
+// X11 and native Wayland, so it's used for all of Linux — not just isX11.
+// The X11-only XShape input-shape helper below is a separate, additional
+// precision refinement layered on top, not part of this positioning switch.
+const usesContainedToolbar = isLinux
+
 if (isWin) {
   // Keep this community build separate from the official DrawPen shortcut,
   // taskbar identity, and per-user settings directory.
@@ -299,6 +312,7 @@ let revealRequestedAfterTransition = false
 let toolbarTransitionGeneration = 0
 let mainWindowLoaded = false
 let extendedToolbarWindowLoaded = false
+let appReadyAt = null
 
 const drawToolbarGeometryWaiters = new Map()
 const drawToolbarAppliedWaiters = new Map()
@@ -367,7 +381,7 @@ ipcMain.on('extended_toolbar_concealed', (event, token, concealed) => {
 })
 
 ipcMain.on('move_contained_toolbar', (event, position, finished) => {
-  if (!isX11 || event.sender !== extendedToolbarWindow?.webContents) return;
+  if (!usesContainedToolbar || event.sender !== extendedToolbarWindow?.webContents) return;
   if (!Number.isFinite(position?.x) || !Number.isFinite(position?.y)) return;
 
   applyContainedToolbarPosition(position, { storePosition: Boolean(finished) })
@@ -574,14 +588,14 @@ function createExtendedToolbarWindow() {
   let hasDevTools = false
 
   const initialDisplay = getLockedMonitor() || getActiveMonitor() || getUnderCursorMonitor()
-  const initialX = isX11
+  const initialX = usesContainedToolbar
     ? initialDisplay.workArea.x
     : initialDisplay.workArea.x + store.get('tool_bar_x') - EXTENDED_TOOLBAR_WINDOW_MARGIN
-  const initialY = isX11
+  const initialY = usesContainedToolbar
     ? initialDisplay.workArea.y
     : initialDisplay.workArea.y + store.get('tool_bar_y') - EXTENDED_TOOLBAR_WINDOW_MARGIN
-  const initialWidth = isX11 ? initialDisplay.workArea.width : EXTENDED_TOOLBAR_WINDOW_WIDTH
-  const initialHeight = isX11 ? initialDisplay.workArea.height : EXTENDED_TOOLBAR_WINDOW_HEIGHT
+  const initialWidth = usesContainedToolbar ? initialDisplay.workArea.width : EXTENDED_TOOLBAR_WINDOW_WIDTH
+  const initialHeight = usesContainedToolbar ? initialDisplay.workArea.height : EXTENDED_TOOLBAR_WINDOW_HEIGHT
 
   if (isDevelopment) {
     hasDevTools = true
@@ -599,7 +613,10 @@ function createExtendedToolbarWindow() {
     minimizable: false,
     maximizable: false,
     frame: false,
-    type: isLinux && !isX11 ? 'toolbar' : undefined,
+    // All of Linux uses the contained-toolbar architecture now (see
+    // usesContainedToolbar above), so the 'toolbar' X11 window-type hint
+    // (with no Wayland equivalent) is never needed here anymore.
+    type: undefined,
     hasShadow: false,
     alwaysOnTop: true,
     skipTaskbar: true,
@@ -650,7 +667,7 @@ function createExtendedToolbarWindow() {
   })
 
   extendedToolbarWindow.on('move', () => {
-    if (isX11) return;
+    if (usesContainedToolbar) return;
 
     if (ignoreExtendedToolbarMoveEvents) {
       if (extendedToolbarProgrammaticMoveTimeout) {
@@ -821,6 +838,8 @@ app.on('second-instance', () => {
 app.commandLine.appendSwitch('disable-pinch');
 
 app.whenReady().then(() => {
+  appReadyAt = Date.now()
+
   launchTracker()
 
   hideDock()
@@ -1456,7 +1475,7 @@ async function enablePointerMode(toolbarScreenPosition = null) {
     const requestedBounds = updateExtendedToolbarWindowPosition(currentDisplay)
     const settledBounds = await waitForExtendedToolbarBoundsToSettle(requestedBounds)
 
-    if (isX11) {
+    if (usesContainedToolbar) {
       configureContainedToolbar(currentDisplay, settledBounds)
     }
 
@@ -1492,14 +1511,15 @@ async function showInitialPointerMode() {
   showWindow(extendedToolbarWindow, { inactive: true })
   const settledBounds = await waitForExtendedToolbarBoundsToSettle(requestedBounds)
 
-  if (isX11) {
+  if (usesContainedToolbar) {
     configureContainedToolbar(currentDisplay, settledBounds)
   }
 
   // If the compositor insists on another initial placement, make that real
   // position authoritative before the first mode switch. This prevents the
   // first Draw Mode transition from jumping to stale stored coordinates.
-  if (!isX11 && (settledBounds.x !== requestedBounds.x || settledBounds.y !== requestedBounds.y)) {
+  // (Only relevant off the contained-toolbar path, i.e. macOS/Windows.)
+  if (!usesContainedToolbar && (settledBounds.x !== requestedBounds.x || settledBounds.y !== requestedBounds.y)) {
     storeToolbarPositionFromExtendedWindow()
   }
 
@@ -1542,7 +1562,20 @@ function resetScreenOnHide() {
   }
 }
 
+const DISPLAY_CHANGE_STARTUP_GRACE_MS = 3000
+
 function handleDisplayChange() {
+  // Native Wayland fires several display-added/display-metrics-changed
+  // events in a row while the compositor and client settle on scale/geometry
+  // right after the first window is created (fractional scaling
+  // negotiation) — this is spurious startup churn, not a real monitor
+  // change, but was hiding the app every time right after it appeared.
+  // Ignore display-change events for a short grace period after launch;
+  // genuine hot-plug changes from the user happen well after that.
+  if (appReadyAt && Date.now() - appReadyAt < DISPLAY_CHANGE_STARTUP_GRACE_MS) {
+    return
+  }
+
   store.delete('active_monitor_id')
   hideApp()
 }
@@ -1942,7 +1975,7 @@ function stopContainedToolbarInputShapeHelper() {
 }
 
 function configureContainedToolbar(display, windowBounds = extendedToolbarWindow.getContentBounds()) {
-  if (!isX11 || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return null;
+  if (!usesContainedToolbar || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return null;
 
   const requestedScreenX = display.workArea.x + store.get('tool_bar_x')
   const requestedScreenY = display.workArea.y + store.get('tool_bar_y')
@@ -1965,7 +1998,7 @@ function configureContainedToolbar(display, windowBounds = extendedToolbarWindow
 }
 
 function applyContainedToolbarPosition(requestedPosition, { storePosition = false } = {}) {
-  if (!isX11 || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return;
+  if (!usesContainedToolbar || !extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return;
 
   const windowBounds = extendedToolbarWindow.getContentBounds()
   const position = clampContainedToolbarPosition(requestedPosition, windowBounds)
@@ -2001,7 +2034,14 @@ function applyContainedToolbarPosition(requestedPosition, { storePosition = fals
 
 function storeToolbarPositionFromExtendedWindow() {
   if (!extendedToolbarWindow || extendedToolbarWindow.isDestroyed()) return;
-  if (isX11) return;
+  // This reads the window's native position via getBounds(), which only
+  // reflects reality when the OS actually lets a client move a window and
+  // honestly reports back where it ended up — true for macOS/Windows (and
+  // previously assumed for "not X11" generally), but not for native Wayland,
+  // which keeps reporting {x:0, y:0} regardless of where the compositor
+  // actually placed it. The contained-toolbar path (all of Linux now) never
+  // moves this window at all, so it doesn't need this function.
+  if (usesContainedToolbar) return;
 
   const toolbarBounds = extendedToolbarWindow.getBounds()
   const currentDisplay = getLockedMonitor() || screen.getDisplayMatching(toolbarBounds)
@@ -2049,7 +2089,7 @@ function flushExtendedToolbarPosition({ force = false } = {}) {
     extendedToolbarPositionStoreTimeout = null
   }
 
-  if (!isX11 &&
+  if (!usesContainedToolbar &&
     extendedToolbarWindow &&
     !extendedToolbarWindow.isDestroyed() &&
     (force || extendedToolbarWindow.isVisible())
@@ -2098,7 +2138,7 @@ function showExtendedToolbarWindow() {
 }
 
 function updateExtendedToolbarWindowPosition(display) {
-  if (isX11) {
+  if (usesContainedToolbar) {
     const requestedBounds = { ...display.workArea }
 
     extendedToolbarWindow.setBounds(requestedBounds)
@@ -2155,12 +2195,12 @@ function waitForExtendedToolbarBoundsToSettle(requestedBounds) {
       stableChecks = matchesPrevious ? stableChecks + 1 : 0
       previousBounds = currentBounds
 
-      if (stableChecks >= 2 && (matchesRequested || isX11)) {
+      if (stableChecks >= 2 && (matchesRequested || usesContainedToolbar)) {
         resolve(currentBounds)
         return
       }
 
-      if (!matchesRequested && !isX11) {
+      if (!matchesRequested && !usesContainedToolbar) {
         extendedToolbarWindow.setBounds(requestedBounds)
       }
 
@@ -2197,6 +2237,15 @@ function getActiveMonitor() {
 }
 
 function getUnderCursorMonitor() {
+  // Electron's getCursorScreenPoint() spins the main process at ~100% CPU
+  // forever under native Wayland + Mutter (confirmed via isolated
+  // reproduction with Electron 40) instead of failing gracefully — Wayland's
+  // security model doesn't allow querying the global cursor position outside
+  // a focused surface. It works fine under X11, so only avoid it there.
+  if (!isX11) {
+    return screen.getPrimaryDisplay()
+  }
+
   return screen.getDisplayNearestPoint(screen.getCursorScreenPoint())
 }
 

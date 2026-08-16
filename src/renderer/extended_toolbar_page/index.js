@@ -88,11 +88,16 @@ dragHandles.forEach(handle => {
 window.electronAPI.onSetConcealed((concealed, token) => {
   document.documentElement.style.visibility = concealed ? 'hidden' : 'visible';
 
-  requestAnimationFrame(() => {
+  // requestAnimationFrame never fires here under native Wayland: setting
+  // visibility to 'hidden' above appears to suspend paint scheduling for
+  // this window before it's ever been composited once, so the callback that
+  // would flip it back to 'visible' never runs — a deadlock. setTimeout
+  // doesn't depend on the compositor granting a frame, so it isn't affected.
+  setTimeout(() => {
     if (token !== undefined && token !== null) {
       window.electronAPI.notifyToolbarConcealed(token, concealed);
     }
-  });
+  }, 0);
 });
 
 closeAppButton.addEventListener('click', () => {
